@@ -147,7 +147,9 @@ export default function DiaryPage({ dicts, onAuthError }) {
     });
     const dates = Object.keys(groups).sort().reverse();
     const shown = dates.slice(0, daysShown);
-    const lastActivity = entries[0].entry_date;
+    // у нового пользователя дневник пуст — обращение к entries[0] без
+    // проверки ломало страницу при открытии формы (белый экран)
+    const lastActivity = entries.length > 0 ? entries[0].entry_date : '';
 
     async function onDelete(entry) {
         if (!window.confirm('Удалить запись?')) return;
@@ -165,8 +167,8 @@ export default function DiaryPage({ dicts, onAuthError }) {
                 <div>
                     <h2 className="view-title">Дневник</h2>
                     <div className="view-sub">
-                        {entries.length} {plural(entries.length, ['запись', 'записи', 'записей'])} ·
-                        последняя активность {fmtDate(lastActivity)}
+                        {entries.length} {plural(entries.length, ['запись', 'записи', 'записей'])}
+                        {lastActivity ? <> · последняя активность {fmtDate(lastActivity)}</> : null}
                     </div>
                 </div>
             </div>
