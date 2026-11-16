@@ -1,0 +1,26 @@
+# Зависимости (ставятся заново через npm install)
+node_modules/
+
+# Сборка клиента (генерируется заново: npm run build)
+client/dist/
+dist/
+
+# Секреты и окружение
+.env
+.env.*
+
+# Логи
+*.log
+npm-debug.log*
+
+# Служебные файлы ОС и редакторов
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+*.swp
+
+# Кэш тестов
+coverage/
+.nyc_output/
