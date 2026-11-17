@@ -24,6 +24,10 @@ if not exist node_modules (
 echo.
 echo Starting AlcoTracker server...
 echo.
+echo Uses the built-in SQLite database - no MySQL or XAMPP needed.
+echo The database file (server\alkotracker.db) is created automatically
+echo on first start with demo data (login: demo / password: demo123).
+echo.
 echo After the server starts, open in your browser:
 echo.
 echo     http://localhost:3000

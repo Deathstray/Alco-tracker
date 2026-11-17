@@ -196,7 +196,9 @@ async function main() {
         name: 'Демо-пользователь', gender: 'male',
         birth_year: 1998, weight_kg: 85, height_cm: 180,
     });
-    check('обновление профиля → 200', r.status === 200 && r.json.data.weight_kg === '85.0');
+    // MySQL (DECIMAL) возвращает вес строкой '85.0', SQLite — числом 85,
+    // поэтому сравниваем как число: контракт API — «вес в кг»
+    check('обновление профиля → 200', r.status === 200 && Number(r.json.data.weight_kg) === 85);
 
     /* ── Аналитика ── */
     r = await callJson('GET', '/api/stats?mode=summary');
@@ -278,7 +280,8 @@ async function main() {
     await db.execute("DELETE FROM daily_records WHERE user_id = 1 AND record_date = '2026-01-01'");
     await db.execute("DELETE FROM users WHERE login = 'test_user'");
     console.log('Тестовые данные удалены (оценка дня 2026-01-01, пользователь test_user)');
-    await db.pool.end();
+    // пул есть только в режиме MySQL; во встроенном SQLite закрывать нечего
+    if (db.pool) await db.pool.end();
 
     console.log('\n═══ Итог: ' + passed + ' OK, ' + failed + ' FAIL ═══');
     process.exit(failed > 0 ? 1 : 0);

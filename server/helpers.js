@@ -116,6 +116,16 @@ class Validator {
     }
 }
 
+/** Ошибка уникальности в БД (MySQL или SQLite). */
+function isUniqueError(err) {
+    if (!err) return false;
+    if (err.code === 'ER_DUP_ENTRY') return true;                       // MySQL
+    if (String(err.code || '').startsWith('SQLITE_CONSTRAINT')) {       // SQLite
+        return /UNIQUE/i.test(err.message || '');
+    }
+    return /UNIQUE constraint failed/i.test(err.message || '');
+}
+
 /** Обёртка для асинхронных маршрутов: ошибки уходят в общий обработчик. */
 function asyncRoute(handler) {
     return (req, res, next) => {
@@ -172,5 +182,5 @@ async function getPeriod(req) {
 
 module.exports = {
     ApiError, sendSuccess, sendError, Validator,
-    asyncRoute, todayISO, daysAgoISO, getPeriod,
+    asyncRoute, isUniqueError, todayISO, daysAgoISO, getPeriod,
 };

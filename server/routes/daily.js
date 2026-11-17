@@ -4,7 +4,7 @@
  */
 const express = require('express');
 const db = require('../db');
-const { sendSuccess, Validator, asyncRoute, getPeriod } = require('../helpers');
+const { sendSuccess, Validator, asyncRoute, getPeriod, isUniqueError } = require('../helpers');
 
 const router = express.Router();
 
@@ -35,21 +35,35 @@ router.post('/', asyncRoute(async (req, res) => {
         ? null : Number(data.morning_condition);
     const note = data.note && String(data.note).trim() !== '' ? String(data.note).trim() : null;
 
-    // Атомарный UPSERT: запись за дату уже есть — обновляем оценки, нет — вставляем.
-    // Конфликт параллельных сохранений (двойной клик) решает уникальный ключ
-    // uq_user_record_date (user_id, record_date) — база гарантирует атомарность
-    const affected = await db.execute(
-        'INSERT INTO daily_records (user_id, record_date, sleep_quality, morning_condition, note)' +
-        ' VALUES (?, ?, ?, ?, ?)' +
-        ' ON DUPLICATE KEY UPDATE' +
-        ' sleep_quality = VALUES(sleep_quality),' +
-        ' morning_condition = VALUES(morning_condition),' +
-        ' note = VALUES(note)',
-        [uid, date, sleep, morning, note]
+    // UPSERT в переносимом виде (работает и в SQLite, и в MySQL):
+    // сначала пробуем обновить запись за дату, если её нет — вставляем.
+    // Гонку параллельных сохранений (двойной клик) страхует уникальный
+    // ключ uq_user_record_date (user_id, record_date): повторная вставка
+    // отклоняется базой, и мы просто обновляем уже созданную строку.
+    const updated = await db.execute(
+        'UPDATE daily_records SET sleep_quality = ?, morning_condition = ?, note = ?' +
+        ' WHERE user_id = ? AND record_date = ?',
+        [sleep, morning, note, uid, date]
     );
 
-    // affectedRows: 1 — вставлена новая строка (201), 2/0 — обновлена существующая (200)
-    sendSuccess(res, { saved: date }, affected === 1 ? 201 : 200);
+    if (updated === 0) {
+        try {
+            await db.execute(
+                'INSERT INTO daily_records (user_id, record_date, sleep_quality, morning_condition, note)' +
+                ' VALUES (?, ?, ?, ?, ?)',
+                [uid, date, sleep, morning, note]
+            );
+            return sendSuccess(res, { saved: date }, 201);   // создана новая запись
+        } catch (e) {
+            if (!isUniqueError(e)) throw e;
+            await db.execute(                                 // строку успел вставить другой запрос
+                'UPDATE daily_records SET sleep_quality = ?, morning_condition = ?, note = ?' +
+                ' WHERE user_id = ? AND record_date = ?',
+                [sleep, morning, note, uid, date]
+            );
+        }
+    }
+    sendSuccess(res, { saved: date }, 200);                   // обновлена существующая
 }));
 
 module.exports = router;

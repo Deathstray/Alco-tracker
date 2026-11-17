@@ -1,1 +1,5 @@
 node_modules/
+
+# встроенная база SQLite создаётся при первом запуске — в git не нужна
+alkotracker.db
+*.db-journal

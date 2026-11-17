@@ -191,28 +191,26 @@ router.get('/', asyncRoute(async (req, res) => {
 
     if (mode === 'by_weekday') {
         // Дозы по дням недели (0 = понедельник … 6 = воскресенье).
-        // Если период охватывает всю историю (параметр from не задан, а to
-        // не раньше последнего пьющего дня) — результат сразу возвращает
-        // представление vw_weekday_stats (агрегация представления над представлением)
-        const lastDay = await db.queryValue(
-            'SELECT MAX(entry_date) FROM vw_daily_stats WHERE user_id = ?', [uid]);
-        const fullPeriod = String(req.query.from || '') === '' &&
-            (lastDay === null || String(lastDay) <= String(to));
-
-        const rows = fullPeriod
-            ? await db.query(
-                'SELECT weekday, doses, days FROM vw_weekday_stats' +
-                ' WHERE user_id = ? ORDER BY weekday', [uid])
-            : await db.query(
-                'SELECT WEEKDAY(entry_date) AS weekday, SUM(doses) AS doses, COUNT(*) AS days' +
-                ' FROM vw_daily_stats' +
-                ' WHERE user_id = ? AND entry_date BETWEEN ? AND ?' +
-                ' GROUP BY WEEKDAY(entry_date) ORDER BY weekday',
-                [uid, from, to]);
+        // День недели считаем в JavaScript, а не функцией WEEKDAY():
+        // такой запрос одинаково работает в SQLite и MySQL.
+        // (getDay(): 0 = воскресенье, сдвиг на 6 даёт 0 = понедельник)
+        const rows = await db.query(
+            'SELECT entry_date, doses' +
+            ' FROM vw_daily_stats' +
+            ' WHERE user_id = ? AND entry_date BETWEEN ? AND ?' +
+            ' ORDER BY entry_date',
+            [uid, from, to]
+        );
 
         const result = {};
         rows.forEach(r => {
-            result[r.weekday] = { doses: Math.round(Number(r.doses) * 10) / 10, days: Number(r.days) };
+            const weekday = (new Date(r.entry_date + 'T00:00:00').getDay() + 6) % 7;
+            if (!result[weekday]) result[weekday] = { doses: 0, days: 0 };
+            result[weekday].doses += Number(r.doses);
+            result[weekday].days += 1;
+        });
+        Object.keys(result).forEach(k => {
+            result[k].doses = Math.round(result[k].doses * 10) / 10;
         });
         sendSuccess(res, result);
         return;

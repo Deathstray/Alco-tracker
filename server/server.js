@@ -30,7 +30,7 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
-const { sendError, ApiError } = require('./helpers');
+const { sendError, ApiError, isUniqueError } = require('./helpers');
 const db = require('./db');
 const config = require('./config');
 
@@ -110,7 +110,7 @@ app.use((err, req, res, next) => {
         return sendError(res, err.message, err.status, err.details);
     }
     // Нарушение уникальности в БД (например, запись с такой датой и временем уже есть)
-    if (err && err.code === 'ER_DUP_ENTRY') {
+    if (isUniqueError(err)) {
         return sendError(res, 'Такая запись уже существует', 422);
     }
     // Ошибки разбора JSON-тела
@@ -129,14 +129,22 @@ async function start() {
         await db.query('SELECT 1');
     } catch (e) {
         console.error('Не удалось подключиться к базе данных.');
-        console.error('Проверьте настройки в server/config.js (host, user, password).');
+        if (db.mode === 'mysql') {
+            console.error('Проверьте настройки MySQL в server/config.js (host, user, password).');
+        } else {
+            console.error('Проверьте права записи в каталог server/ (файл базы ' +
+                (config.sqliteFile || 'alkotracker.db') + ').');
+        }
         console.error('Подробности: ' + e.message);
         process.exit(1);
     }
 
     app.listen(PORT, () => {
         console.log('API АлкоТрекер запущено:  http://localhost:' + PORT);
-        console.log('База данных: ' + config.database + ' @ ' + config.host + ':' + config.port);
+        console.log(db.mode === 'mysql'
+            ? 'База данных: MySQL ' + config.mysql.database + ' @ ' + config.mysql.host + ':' + config.mysql.port
+            : 'База данных: встроенная SQLite (' + (config.sqliteFile || 'alkotracker.db') +
+              '), установка MySQL не требуется');
     });
 }
 

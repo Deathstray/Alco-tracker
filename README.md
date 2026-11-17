@@ -12,7 +12,7 @@
 |---|---|
 | Клиент | **React 18** (Vite), чистый CSS, собственные SVG-диаграммы без библиотек |
 | Сервер | **Node.js + Express**, REST API, сессии (express-session) |
-| База | **MySQL** (utf8mb4), 8 таблиц + 3 представления, запросы через mysql2 |
+| База | **SQLite** (встроенная, без установки — по умолчанию) или **MySQL** (utf8mb4, 8 таблиц + 3 представления) — один и тот же код |
 | Безопасность | bcrypt-хэши паролей (bcryptjs), подготовленные SQL-выражения, изоляция данных по пользователям |
 
 ## Возможности
@@ -34,13 +34,13 @@
 alkotracker-node/
 ├── server/                  # REST API (Node.js + Express)
 │   ├── server.js            # точка входа: маршруты, сессии, статика
-│   ├── config.js            # настройки MySQL
-│   ├── db.js                # пул соединений mysql2
+│   ├── config.js            # режим БД (sqlite/mysql) и параметры MySQL
+│   ├── db.js                # единый интерфейс к БД: SQLite или MySQL
 │   ├── helpers.js           # формат ответов, валидация, периоды
 │   ├── calc.js              # дозы, промилле, шкала риска
 │   ├── routes/              # auth, dicts, entries, daily, profile, stats
 │   ├── import/              # импорт данных из CSV (Excel)
-│   ├── sql/                 # схема БД и полный дамп с демо-данными
+│   ├── sql/                 # дампы: MySQL (полный) и SQLite (автозапуск)
 │   ├── data/                # исходные таблицы (xlsx + csv)
 │   └── tests/               # 44 юнит-теста + интеграционные
 └── client/                  # интерфейс (React + Vite)
@@ -71,14 +71,23 @@ alkotracker-node/
 
 ## Быстрый старт
 
+Ничего, кроме Node.js 22+, устанавливать не нужно — база SQLite встроенная:
+
 ```
-1. Импортировать server/sql/alkotracker_full_dump.sql в MySQL (phpMyAdmin)
-2. cd server && npm install && npm start        # API на :3000
-3. cd client && npm install && npm run dev      # интерфейс на :5173
-4. Открыть http://localhost:5173, вход: demo / demo123
+git clone https://github.com/Deathstray/Alco-tracker.git
+cd Alco-tracker/server
+npm install
+npm start
 ```
 
-Подробно — в [INSTALL.md](INSTALL.md).
+Открыть http://localhost:3000 — вход: demo / demo123.
+В Windows достаточно двойного клика по `start.bat`.
+
+Собранная версия клиента уже в репозитории (`client/dist`).
+Режим разработки интерфейса: `cd client && npm install && npm run dev` → :5173.
+
+Полный режим MySQL (для защиты ВКР): `start-mysql.bat` или
+`ALKOTRACKER_DB=mysql` — подробности в [INSTALL.md](INSTALL.md).
 
 ## Демо-данные
 
@@ -92,8 +101,10 @@ alkotracker-node/
 ```
 cd server
 npm test                    # 44 юнит-теста (без базы)
-node tests/api_tests.js     # интеграционные тесты API (нужны MySQL и сервер)
+node tests/api_tests.js     # интеграционные тесты API (нужен запущенный сервер)
 ```
+
+Тесты одинаково проходят в обоих режимах — и SQLite, и MySQL (50 OK).
 
 ## Примечание
 

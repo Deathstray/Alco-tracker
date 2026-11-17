@@ -1,9 +1,13 @@
 # Зависимости (ставятся заново через npm install)
 node_modules/
 
-# Сборка клиента (генерируется заново: npm run build)
-client/dist/
-dist/
+# Встроенная база SQLite — создаётся автоматически при первом запуске
+# (схема и демо-данные: server/sql/alkotracker_sqlite.sql)
+server/alkotracker.db
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # Секреты и окружение
 .env
